@@ -4,20 +4,21 @@ import { createConnection } from "node:net";
 import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
+import { appPort, appUrl } from "./app-config.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(root);
-const url = "http://localhost:3000";
+const url = appUrl;
 const healthPath = "/__kirinji_launcher_health";
 const rootId = createHash("sha256")
   .update(process.platform === "win32" ? root.toLowerCase() : root)
   .digest("hex");
 const log = (message) => console.log(`[Kirinji] ${message}`);
 const portError =
-  "Port 3000 is in use by another server. Stop it and run Start-Kirinji.bat again. The port is kept fixed to preserve browser data.";
+  `Port ${appPort} is in use by another server. Stop that server and run Start-Kirinji.bat again. Kirinji uses its own fixed port to preserve browser data.`;
 function portOccupied() {
   return new Promise((resolveOccupied) => {
-    const socket = createConnection({ host: "127.0.0.1", port: 3000 });
+    const socket = createConnection({ host: "127.0.0.1", port: appPort });
     const finish = (occupied) => {
       socket.destroy();
       resolveOccupied(occupied);
@@ -124,7 +125,7 @@ async function main() {
   const { createServer } = await import("vite");
   const server = await createServer({
     root,
-    server: { host: "127.0.0.1", port: 3000, strictPort: true },
+    server: { host: "127.0.0.1", port: appPort, strictPort: true },
     plugins: [
       {
         name: "kirinji-launcher-health",
