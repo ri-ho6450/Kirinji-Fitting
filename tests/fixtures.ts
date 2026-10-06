@@ -1,0 +1,58 @@
+import type { BodyInput, Product, ProductSize } from "../src/domain/types";
+export const product: Product = {
+  id: "fixture-gakuran",
+  schoolId: "fixture-school",
+  name: "テスト用詰襟",
+  category: "gakuran",
+  gender: "male",
+  sizeRuleId: "default-gakuran",
+  sleeveExtendable: 3,
+  active: true,
+};
+export const input: BodyInput = {
+  gender: "male",
+  schoolStage: "junior_high",
+  growthConsideration: true,
+  height: 155,
+  weight: 45,
+  chest: 78,
+  shoulder: 40,
+  sleeve: 56,
+  length: 65,
+  waist: 65,
+};
+export const sizes: ProductSize[] = [
+  {
+    id: "s160",
+    productId: product.id,
+    sizeName: "160A",
+    sortOrder: 1,
+    chest: 104,
+    shoulder: 41.5,
+    sleeve: 57,
+    length: 66,
+    nominalHeight: 160,
+  },
+  {
+    id: "s165",
+    productId: product.id,
+    sizeName: "165A",
+    sortOrder: 2,
+    chest: 107,
+    shoulder: 42.5,
+    sleeve: 59,
+    length: 68,
+    nominalHeight: 165,
+  },
+  {
+    id: "s170",
+    productId: product.id,
+    sizeName: "170A",
+    sortOrder: 3,
+    chest: 110,
+    shoulder: 43.5,
+    sleeve: 63,
+    length: 70,
+    nominalHeight: 170,
+  },
+];
