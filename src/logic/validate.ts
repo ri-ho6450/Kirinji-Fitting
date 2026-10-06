@@ -61,7 +61,9 @@ export function validateRules(set: RuleSet): string[] {
       f !== "height" &&
       !(
         f === "waist" &&
-        ["gakuran", "blazer", "shirt", "gym_top"].includes(set.category)
+        ["gakuran", "blazer", "sailor", "sweater", "shirt", "gym_top"].includes(
+          set.category,
+        )
       ),
   );
   for (const f of needed) {
@@ -87,6 +89,8 @@ export function validateSizes(
     names = new Set<string>(),
     orders = new Set<number>();
   for (const size of sizes) {
+    if (size.gender !== undefined && size.gender !== product.gender)
+      errors.push(`${size.sizeName}の男女区分と商品が一致しません`);
     if (
       !size.id ||
       !size.sizeName?.trim() ||

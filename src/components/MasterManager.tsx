@@ -1,15 +1,20 @@
 import { useEffect, useState } from "react";
-import type { MasterData, ProductSize } from "../domain/types";
+import type { MasterData, ProductSize, Product } from "../domain/types";
 import {
   categoryLabels,
   fieldLabels,
   measurementFields,
 } from "../data/fitRules";
 import { validateMaster, validateSizes } from "../logic/validate";
-import { importTable } from "../utils/importTable";
+import {
+  importTable,
+  declaredGender,
+  genderLabels,
+} from "../utils/importTable";
 import { downloadJson } from "../utils/storage";
 import { extractPdfText, loadPdfSource, savePdfSource } from "../utils/pdf";
 import PdfCanvasViewer from "./PdfCanvasViewer";
+import ProductCreator from "./ProductCreator";
 const numericFields = [
   "chest",
   "waist",
@@ -46,6 +51,7 @@ export default function MasterManager({
   const product = master.products.find(
     (p) => p.id === productId && p.schoolId === schoolId,
   );
+  const [importGender, setImportGender] = useState<Product["gender"]>("both");
   const [draft, setDraft] = useState<ProductSize[]>([]);
   const [text, setText] = useState("");
   const [error, setError] = useState("");
@@ -62,6 +68,9 @@ export default function MasterManager({
     setFullConfirmed(false);
   }, [master]);
   useEffect(() => {
+    setImportGender(
+      master.products.find((p) => p.id === productId)?.gender ?? "both",
+    );
     setText("");
     setError("");
     setMessage("");
@@ -107,14 +116,37 @@ export default function MasterManager({
   const save = () => {
     try {
       if (!product || !confirmed) throw new Error("製品実寸を確認してください");
+      if (
+        product.gender !== importGender &&
+        master.sizes.some((s) => s.productId === product.id)
+      )
+        throw new Error(
+          "登録済み商品の男女区分は変更できません。別の男女区分の商品を追加してください",
+        );
+      const targetProduct = { ...product, gender: importGender };
+      const targetDraft = draft.map((size) => ({
+        ...size,
+        gender: importGender,
+      }));
+      if (
+        draft.some(
+          (size) => size.gender !== undefined && size.gender !== importGender,
+        )
+      )
+        throw new Error(
+          "取込データと男女区分が一致しません。再取り込みしてください",
+        );
       const set = master.ruleSets.find((r) => r.id === product.sizeRuleId)!;
-      const errors = validateSizes(product, draft, set);
+      const errors = validateSizes(targetProduct, targetDraft, set);
       if (errors.length) throw new Error(errors.join("／"));
       onSave({
         ...master,
+        products: master.products.map((p) =>
+          p.id === product.id ? targetProduct : p,
+        ),
         sizes: [
           ...master.sizes.filter((s) => s.productId !== product.id),
-          ...draft,
+          ...targetDraft,
         ],
       });
       setMessage("確認済みサイズマスタを保存しました。");
@@ -134,7 +166,13 @@ export default function MasterManager({
       ) {
         setPdf(file);
         setPdfName(file.name);
-        setText(await extractPdfText(file));
+        const extracted = await extractPdfText(file);
+        setText(extracted);
+        const detected = declaredGender(extracted);
+        if (detected) {
+          setImportGender(detected);
+        }
+
         setMessage(
           "PDF抽出結果は仮データです。列名・数値を確認し、表に取り込んでください。",
         );
@@ -189,12 +227,28 @@ export default function MasterManager({
                 .filter((p) => p.schoolId === schoolId)
                 .map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name} ／ {categoryLabels[p.category]}
+                    {p.name} ／ {categoryLabels[p.category]} ／{" "}
+                    {genderLabels[p.gender]}
                   </option>
                 ))}
             </select>
           </label>
         </div>
+        <ProductCreator
+          disabled={busy}
+          master={master}
+          schoolId={schoolId}
+          onCreate={(created, rule) => {
+            onSave({
+              ...master,
+              products: [...master.products, created],
+              ruleSets: master.ruleSets.some((r) => r.id === rule.id)
+                ? master.ruleSets
+                : [...master.ruleSets, rule],
+            });
+            setProductId(created.id);
+          }}
+        />
         {product && (
           <>
             <p className="mt-4 text-sm">
@@ -202,6 +256,28 @@ export default function MasterManager({
               {master.sizes.filter((s) => s.productId === productId).length}
               サイズ ／ メーカー：{product.manufacturer || "未登録"} ／ 品番：
               {product.productCode || "未登録"}
+            </p>
+            <label className="mt-4">
+              取込データの男女区分
+              <select
+                aria-label="取込データの男女区分"
+                value={importGender}
+                disabled={busy}
+                onChange={(e) => {
+                  setImportGender(e.target.value as Product["gender"]);
+                  setConfirmed(false);
+                }}
+              >
+                {Object.entries(genderLabels).map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="muted mt-2">
+              登録先：{product.name} ／ {genderLabels[importGender]}
+              。未登録商品の区分は確認保存時に反映します。男女で寸法が異なる場合は別商品を追加してください。
             </p>
             <div className="mt-5 rounded-2xl bg-slate-50 p-4">
               <label>
@@ -217,7 +293,7 @@ export default function MasterManager({
                 />
               </label>
               <p className="muted">
-                CSV列例：サイズ名,胸囲,肩幅,袖丈,着丈,呼称身長。身幅と胸囲は別の寸法です。自動換算は行いません。
+                CSV列例：サイズ名,性別,胸囲,肩幅,袖丈,着丈。性別列は男子・女子・男女共通で指定します。身幅と胸囲は別の寸法です。自動換算は行いません。
               </p>
               <textarea
                 aria-label="取り込み用寸法テキスト"
@@ -234,7 +310,7 @@ export default function MasterManager({
                 disabled={busy}
                 onClick={() => {
                   try {
-                    changeDraft(importTable(text, product.id));
+                    changeDraft(importTable(text, product.id, importGender));
                     setError("");
                   } catch (e) {
                     setError((e as Error).message);
@@ -252,6 +328,7 @@ export default function MasterManager({
                 <thead>
                   <tr>
                     <th>サイズ名</th>
+                    <th>男女区分</th>
                     <th>順序</th>
                     {numericFields.map((f) => (
                       <th key={f}>{labels[f]}</th>
@@ -276,6 +353,9 @@ export default function MasterManager({
                             )
                           }
                         />
+                      </td>
+                      <td className="whitespace-nowrap">
+                        {genderLabels[s.gender ?? importGender]}
                       </td>
                       <td>
                         <input
@@ -356,7 +436,7 @@ export default function MasterManager({
                 checked={confirmed}
                 onChange={(e) => setConfirmed(e.target.checked)}
               />
-              原本と照合し、サイズ名・製品実寸・調整範囲を確認しました
+              原本と照合し、男女区分・サイズ名・製品実寸・調整範囲を確認しました
             </label>
             <div className="flex flex-wrap gap-3 mt-3">
               <button

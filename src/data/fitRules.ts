@@ -8,6 +8,8 @@ import type {
 export const categoryLabels: Record<ProductCategory, string> = {
   gakuran: "詰襟",
   blazer: "ブレザー",
+  sailor: "セーラー服",
+  sweater: "セーター",
   shirt: "シャツ",
   slacks: "スラックス",
   skirt: "スカート",
@@ -39,6 +41,8 @@ export const fieldLabels: Record<BodyMeasurement, string> = {
 export const requiredFields: Record<ProductCategory, BodyMeasurement[]> = {
   gakuran: ["height", "chest", "shoulder", "sleeve", "waist"],
   blazer: ["height", "chest", "shoulder", "sleeve", "waist"],
+  sailor: ["height", "chest", "shoulder", "sleeve", "waist"],
+  sweater: ["height", "chest", "shoulder", "sleeve", "waist"],
   shirt: ["height", "chest", "shoulder", "sleeve", "waist"],
   gym_top: ["height", "chest", "shoulder", "sleeve", "waist"],
   slacks: ["height", "waist", "hip", "inseam"],

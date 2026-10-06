@@ -15,7 +15,12 @@ import type {
   MasterData,
   RecommendationResult,
 } from "./domain/types";
-import { categoryLabels, requiredFields, fieldLabels } from "./data/fitRules";
+import {
+  categoryLabels,
+  requiredFields,
+  fieldLabels,
+  measurementFields,
+} from "./data/fitRules";
 import { fittingNotice, recommendSize } from "./logic/recommendSize";
 import { downloadJson, loadMaster, saveMaster } from "./utils/storage";
 import SizeCard from "./components/SizeCard";
@@ -42,14 +47,25 @@ export default function App() {
       (p.gender === gender || p.gender === "both"),
   );
   const product = available.find((p) => p.id === productId);
+  const selectedRules = master.ruleSets.find(
+    (r) => r.id === product?.sizeRuleId,
+  );
   const fields: BodyMeasurement[] = product
     ? [
         ...new Set<BodyMeasurement>([
           ...requiredFields[product.category],
+          ...(selectedRules?.rules.map(
+            (r) => measurementFields[r.measurement],
+          ) ?? []),
           "weight",
-          ...(["gakuran", "blazer", "shirt", "gym_top"].includes(
-            product.category,
-          )
+          ...([
+            "gakuran",
+            "blazer",
+            "sailor",
+            "sweater",
+            "shirt",
+            "gym_top",
+          ].includes(product.category)
             ? ["length" as const]
             : []),
         ]),
@@ -238,9 +254,12 @@ export default function App() {
                       <label key={f}>
                         {fieldLabels[f]}
                         {product &&
-                          requiredFields[product.category].includes(f) && (
-                            <span className="text-rose-500 ml-1">*</span>
-                          )}
+                          (requiredFields[product.category].includes(f) ||
+                            selectedRules?.rules.some(
+                              (r) =>
+                                r.hardConstraint &&
+                                measurementFields[r.measurement] === f,
+                            )) && <span className="text-rose-500 ml-1">*</span>}
                         <div className="relative">
                           <input
                             type="number"
@@ -248,7 +267,12 @@ export default function App() {
                             step="0.1"
                             required={
                               !!product &&
-                              requiredFields[product.category].includes(f)
+                              (requiredFields[product.category].includes(f) ||
+                                selectedRules?.rules.some(
+                                  (r) =>
+                                    r.hardConstraint &&
+                                    measurementFields[r.measurement] === f,
+                                ))
                             }
                             value={values[f] ?? ""}
                             placeholder="未入力"

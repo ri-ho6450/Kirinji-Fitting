@@ -12,7 +12,7 @@ export async function extractPdfText(file: File): Promise<string> {
       const content = await (await pdf.getPage(page)).getTextContent();
       const rows = new Map<number, { str: string; x: number }[]>();
       for (const item of content.items)
-        if ("str" in item) {
+        if ("str" in item && item.str.trim()) {
           const y = Math.round(item.transform[5] / 6) * 6;
           const row = rows.get(y) ?? [];
           row.push({ str: item.str, x: item.transform[4] });

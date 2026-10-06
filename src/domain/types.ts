@@ -3,6 +3,8 @@ export type SchoolStage = "elementary" | "junior_high" | "high_school";
 export type ProductCategory =
   | "gakuran"
   | "blazer"
+  | "sailor"
+  | "sweater"
   | "shirt"
   | "slacks"
   | "skirt"
@@ -48,6 +50,7 @@ export interface Product {
   active: boolean;
 }
 export interface ProductSize {
+  gender?: Product["gender"];
   id: string;
   productId: string;
   sizeName: string;

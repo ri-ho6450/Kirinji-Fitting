@@ -265,3 +265,47 @@ test("no current acceptable fit yields null trial even if hard conditions pass",
   assert.equal(r.trialRecommendation, null);
   assert.match(r.explanation, /推奨サイズを判定できません/);
 });
+
+test("transposed PDF table imports both standard and B sizes with male classification", () => {
+  const table =
+    "件名\t誠英高校\n品名\t男子ブレザー・S2ツ釦\nサイズ\t3S\tSS\tS\tM\tL\tLL\t3L\n胸囲\t94.5\t99\t103.5\t108\t112.5\t117\t121.5\n肩巾\t40\t41.5\t43\t44.5\t46\t47.5\t49\n着丈\t63\t66\t69\t72\t75\t78\t81\n袖丈\t55\t57\t59\t61\t63\t65\t67\nサイズ\tB3S\tBSS\tBS\tBM\tBL\tBLL\tB3L\n胸囲\t102.5\t107\t111.5\t116\t120.5\t125\t129.5\n肩巾\t42.5\t44\t45.5\t47\t48.5\t50\t51.5\n着丈\t64\t67\t70\t73\t76\t79\t82\n袖丈\t56\t58\t60\t62\t64\t66\t68";
+  const imported = importTable(table, "jacket", "male");
+  assert.equal(imported.length, 14);
+  assert.equal(imported[0].chest, 94.5);
+  assert.equal(imported[13].shoulder, 51.5);
+  assert.equal(imported[13].sleeve, 68);
+  assert.ok(imported.every((s) => s.gender === "male"));
+  assert.ok(imported.every((s) => s.nominalHeight === undefined));
+  assert.throws(() => importTable(table, "jacket", "female"));
+});
+test("CSV gender column requires consistent matching destination; legacy CSV inherits selected gender", () => {
+  assert.equal(
+    importTable("サイズ名,性別,胸囲\nS,女子,98", "female", "female")[0].gender,
+    "female",
+  );
+  assert.throws(() =>
+    importTable("サイズ名,性別,胸囲\nS,女子,98", "male", "male"),
+  );
+  assert.throws(() =>
+    importTable("サイズ名,性別,胸囲\nS,男子,98\nM,女子,100", "mixed"),
+  );
+  assert.equal(
+    importTable("サイズ名,胸囲\nS,98", "old", "male")[0].gender,
+    "male",
+  );
+});
+test("garment gender mismatch cannot enter recommendation engine", () => {
+  assert.equal(
+    run(
+      input,
+      sizes.map((s) => ({ ...s, gender: "female" })),
+    ).trialRecommendation,
+    null,
+  );
+});
+test("transposed PDF missing cells and repeated measurements are rejected", () => {
+  assert.throws(() => importTable("サイズ\tS\tM\n胸囲\t98", "p", "male"));
+  assert.throws(() =>
+    importTable("サイズ\tS\n胸囲\t98\n胸囲\t99", "p", "male"),
+  );
+});

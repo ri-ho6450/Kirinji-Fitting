@@ -7,6 +7,7 @@ import type {
   RecommendationResult,
   SizeEvaluation,
 } from "../domain/types";
+import { fieldLabels, measurementFields } from "../data/fitRules";
 import { evaluateSize } from "./evaluateSize";
 import {
   calculateGrowthScore,
@@ -44,6 +45,14 @@ export function recommendSize(
   const errors = [...validateRules(set), ...validateInput(input, product)];
   if (sizes.some((s) => s.productId !== product.id))
     errors.push("他商品の寸法が混在しています");
+  for (const rule of set.rules)
+    if (
+      rule.hardConstraint &&
+      input[measurementFields[rule.measurement]] === undefined
+    )
+      errors.push(
+        `${fieldLabels[measurementFields[rule.measurement]]}を入力してください`,
+      );
   errors.push(...validateSizes(product, sizes, set));
   if (errors.length) return noResult([...new Set(errors)]);
   const allSizes = [...sizes]
